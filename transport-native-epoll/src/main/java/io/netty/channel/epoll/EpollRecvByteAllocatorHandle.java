@@ -17,13 +17,14 @@ package io.netty.channel.epoll;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelConfig;
-import io.netty.channel.RecvByteBufAllocator;
+import io.netty.channel.RecvByteBufAllocator.DelegatingHandle;
+import io.netty.channel.RecvByteBufAllocator.ExtendedHandle;
+import io.netty.channel.unix.PreferredDirectByteBufAllocator;
 import io.netty.util.UncheckedBooleanSupplier;
-import io.netty.util.internal.ObjectUtil;
 
-class EpollRecvByteAllocatorHandle implements RecvByteBufAllocator.ExtendedHandle {
-    private final RecvByteBufAllocator.ExtendedHandle delegate;
+class EpollRecvByteAllocatorHandle extends DelegatingHandle implements ExtendedHandle {
+    private final PreferredDirectByteBufAllocator preferredDirectByteBufAllocator =
+            new PreferredDirectByteBufAllocator();
     private final UncheckedBooleanSupplier defaultMaybeMoreDataSupplier = new UncheckedBooleanSupplier() {
         @Override
         public boolean get() {
@@ -33,8 +34,8 @@ class EpollRecvByteAllocatorHandle implements RecvByteBufAllocator.ExtendedHandl
     private boolean isEdgeTriggered;
     private boolean receivedRdHup;
 
-    EpollRecvByteAllocatorHandle(RecvByteBufAllocator.ExtendedHandle handle) {
-        this.delegate = ObjectUtil.checkNotNull(handle, "handle");
+    EpollRecvByteAllocatorHandle(ExtendedHandle handle) {
+        super(handle);
     }
 
     final void receivedRdHup() {
@@ -69,57 +70,19 @@ class EpollRecvByteAllocatorHandle implements RecvByteBufAllocator.ExtendedHandl
 
     @Override
     public final ByteBuf allocate(ByteBufAllocator alloc) {
-        return delegate.allocate(alloc);
-    }
-
-    @Override
-    public final int guess() {
-        return delegate.guess();
-    }
-
-    @Override
-    public final void reset(ChannelConfig config) {
-        delegate.reset(config);
-    }
-
-    @Override
-    public final void incMessagesRead(int numMessages) {
-        delegate.incMessagesRead(numMessages);
-    }
-
-    @Override
-    public final void lastBytesRead(int bytes) {
-        delegate.lastBytesRead(bytes);
-    }
-
-    @Override
-    public final int lastBytesRead() {
-        return delegate.lastBytesRead();
-    }
-
-    @Override
-    public final int attemptedBytesRead() {
-        return delegate.attemptedBytesRead();
-    }
-
-    @Override
-    public final void attemptedBytesRead(int bytes) {
-        delegate.attemptedBytesRead(bytes);
-    }
-
-    @Override
-    public final void readComplete() {
-        delegate.readComplete();
+        // We need to ensure we always allocate a direct ByteBuf as we can only use a direct buffer to read via JNI.
+        preferredDirectByteBufAllocator.updateAllocator(alloc);
+        return delegate().allocate(preferredDirectByteBufAllocator);
     }
 
     @Override
     public final boolean continueReading(UncheckedBooleanSupplier maybeMoreDataSupplier) {
-        return delegate.continueReading(maybeMoreDataSupplier);
+        return ((ExtendedHandle) delegate()).continueReading(maybeMoreDataSupplier);
     }
 
     @Override
     public final boolean continueReading() {
         // We must override the supplier which determines if there maybe more data to read.
-        return delegate.continueReading(defaultMaybeMoreDataSupplier);
+        return continueReading(defaultMaybeMoreDataSupplier);
     }
 }

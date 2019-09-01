@@ -17,6 +17,7 @@ package io.netty.channel.epoll;
 
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.EventLoopTaskQueueFactory;
 import io.netty.channel.SelectStrategy;
 import io.netty.channel.SingleThreadEventLoop;
 import io.netty.channel.epoll.AbstractEpollChannel.AbstractEpollUnsafe;
@@ -32,22 +33,20 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.BitSet;
 import java.util.Queue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.min;
 
 /**
  * {@link EventLoop} which uses epoll under the covers. Only works on Linux!
  */
-final class EpollEventLoop extends SingleThreadEventLoop {
+class EpollEventLoop extends SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(EpollEventLoop.class);
-    private static final AtomicIntegerFieldUpdater<EpollEventLoop> WAKEN_UP_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(EpollEventLoop.class, "wakenUp");
 
     static {
         // Ensure JNI is initialized by the time this class is loaded by this time!
@@ -55,14 +54,28 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         Epoll.ensureAvailability();
     }
 
+    /**
+     * When in epollWait(), this mirrors the currently-set deadline of the timerFd. A negative value
+     * means that the event loop is awake, which blocks rescheduling activity by other threads.
+     * It is restored to the real timerFd expiry time again prior to entering epollWait().
+     *
+     * Note that we use deadline instead of delay because deadline is just a fixed number but delay requires interacting
+     * with the time source (e.g. calling System.nanoTime()) which can be expensive.
+     */
+    private final AtomicLong nextDeadlineNanos = new AtomicLong(-1L);
+    private final AtomicInteger wakenUp = new AtomicInteger();
     private final FileDescriptor epollFd;
     private final FileDescriptor eventFd;
     private final FileDescriptor timerFd;
     private final IntObjectMap<AbstractEpollChannel> channels = new IntObjectHashMap<AbstractEpollChannel>(4096);
+    private final BitSet pendingFlagChannels = new BitSet();
+
     private final boolean allowGrowing;
     private final EpollEventArray events;
-    private final IovArray iovArray = new IovArray();
-    private final NativeDatagramPacketArray datagramPacketArray = new NativeDatagramPacketArray();
+
+    // These are initialized on first use
+    private IovArray iovArray;
+    private NativeDatagramPacketArray datagramPacketArray;
 
     private final SelectStrategy selectStrategy;
     private final IntSupplier selectNowSupplier = new IntSupplier() {
@@ -71,21 +84,12 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             return epollWaitNow();
         }
     };
-    private final Callable<Integer> pendingTasksCallable = new Callable<Integer>() {
-        @Override
-        public Integer call() throws Exception {
-            return EpollEventLoop.super.pendingTasks();
-        }
-    };
-    private volatile int wakenUp;
-    private volatile int ioRatio = 50;
-
-    // See http://man7.org/linux/man-pages/man2/timerfd_create.2.html.
-    private static final long MAX_SCHEDULED_TIMERFD_NS = 999999999;
 
     EpollEventLoop(EventLoopGroup parent, Executor executor, int maxEvents,
-                   SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler) {
-        super(parent, executor, false, DEFAULT_MAX_PENDING_TASKS, rejectedExecutionHandler);
+                   SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler,
+                   EventLoopTaskQueueFactory queueFactory) {
+        super(parent, executor, false, newTaskQueue(queueFactory), newTaskQueue(queueFactory),
+                rejectedExecutionHandler);
         selectStrategy = ObjectUtil.checkNotNull(strategy, "strategy");
         if (maxEvents == 0) {
             allowGrowing = true;
@@ -102,12 +106,16 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             this.epollFd = epollFd = Native.newEpollCreate();
             this.eventFd = eventFd = Native.newEventFd();
             try {
-                Native.epollCtlAdd(epollFd.intValue(), eventFd.intValue(), Native.EPOLLIN);
+                // It is important to use EPOLLET here as we only want to get the notification once per
+                // wakeup and don't call eventfd_read(...).
+                Native.epollCtlAdd(epollFd.intValue(), eventFd.intValue(), Native.EPOLLIN | Native.EPOLLET);
             } catch (IOException e) {
                 throw new IllegalStateException("Unable to add eventFd filedescriptor to epoll", e);
             }
             this.timerFd = timerFd = Native.newTimerFd();
             try {
+                // It is important to use EPOLLET here as we only want to get the notification once per
+                // wakeup and don't call read(...).
                 Native.epollCtlAdd(epollFd.intValue(), timerFd.intValue(), Native.EPOLLIN | Native.EPOLLET);
             } catch (IOException e) {
                 throw new IllegalStateException("Unable to add timerFd filedescriptor to epoll", e);
@@ -140,11 +148,23 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    private static Queue<Runnable> newTaskQueue(
+            EventLoopTaskQueueFactory queueFactory) {
+        if (queueFactory == null) {
+            return newTaskQueue0(DEFAULT_MAX_PENDING_TASKS);
+        }
+        return queueFactory.newTaskQueue(DEFAULT_MAX_PENDING_TASKS);
+    }
+
     /**
      * Return a cleared {@link IovArray} that can be used for writes in this {@link EventLoop}.
      */
     IovArray cleanIovArray() {
-        iovArray.clear();
+        if (iovArray == null) {
+            iovArray = new IovArray();
+        } else {
+            iovArray.clear();
+        }
         return iovArray;
     }
 
@@ -152,13 +172,96 @@ final class EpollEventLoop extends SingleThreadEventLoop {
      * Return a cleared {@link NativeDatagramPacketArray} that can be used for writes in this {@link EventLoop}.
      */
     NativeDatagramPacketArray cleanDatagramPacketArray() {
-        datagramPacketArray.clear();
+        if (datagramPacketArray == null) {
+            datagramPacketArray = new NativeDatagramPacketArray();
+        } else {
+            datagramPacketArray.clear();
+        }
         return datagramPacketArray;
     }
 
     @Override
+    protected boolean beforeScheduledTaskSubmitted(long deadlineNanos) {
+        return false; // don't wake event loop
+    }
+
+    @Override
+    protected boolean afterScheduledTaskSubmitted(long deadlineNanos) {
+        try {
+            trySetTimerFd(deadlineNanos);
+        } catch (IOException e) {
+            throw new RejectedExecutionException(e);
+        }
+        return false; // don't wake event loop
+    }
+
+    @Override
+    protected boolean runAllTasks() {
+        // This method is overridden to ensure that all the expired scheduled tasks are executed during shutdown, and
+        // any other execute all scenarios in the base class.
+        return runScheduledAndExecutorTasks(4);
+    }
+
+    private void trySetTimerFd(long candidateNextDeadline) throws IOException {
+        for (;;) {
+            long nextDeadline = nextDeadlineNanos.get();
+            if (nextDeadline <= candidateNextDeadline) {
+                // This includes case where nextDeadline is negative (event loop is awake)
+                return;
+            }
+            if (nextDeadlineNanos.compareAndSet(nextDeadline, candidateNextDeadline)) {
+                // We must serialize calls to setTimerFd to avoid the set of a later deadline
+                // racing with a sooner one and overwriting it. A second check of nextDeadlineNanos
+                // is made within the sync block to avoid having the CAS within the sync
+                synchronized (nextDeadlineNanos) {
+                    nextDeadline = nextDeadlineNanos.get();
+                    if (nextDeadline == candidateNextDeadline ||
+                            (nextDeadline + Long.MAX_VALUE + 1) == candidateNextDeadline) {
+                        setTimerFd(deadlineToDelayNanos(candidateNextDeadline));
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    private void setTimerFd(long candidateNextDelayNanos) throws IOException {
+        if (candidateNextDelayNanos > 0) {
+            final int delaySeconds = (int) min(candidateNextDelayNanos / 1000000000L, Integer.MAX_VALUE);
+            final int delayNanos = (int) min(candidateNextDelayNanos - delaySeconds * 1000000000L, Integer.MAX_VALUE);
+            Native.timerFdSetTime(timerFd.intValue(), delaySeconds, delayNanos);
+        } else {
+            // Setting the timer to 0, 0 will disarm it, so we have a few options:
+            // 1. Set the timer wakeup to 1ns (1 system call).
+            // 2. Use the eventFd to force a wakeup and disarm the timer (2 system calls).
+            // For now we are using option (1) because there are less system calls, and we will correctly reset the
+            // nextDeadlineNanos state when the EventLoop processes the timer wakeup.
+            Native.timerFdSetTime(timerFd.intValue(), 0, 1);
+        }
+    }
+
+    private long checkScheduleTaskQueueForNewDelay(long timerFdDeadline) throws IOException {
+        assert nextDeadlineNanos.get() < 0;
+        final long nextTaskDeadlineNanos = nextScheduledTaskDeadlineNanos();
+        if (nextTaskDeadlineNanos == -1 || nextTaskDeadlineNanos >= timerFdDeadline) {
+            // Just restore to preexisting timerFd value, update not needed
+            nextDeadlineNanos.lazySet(timerFdDeadline);
+        } else {
+            synchronized (nextDeadlineNanos) {
+                // Shorter delay required than current timerFd setting, update it
+                nextDeadlineNanos.lazySet(timerFdDeadline = nextTaskDeadlineNanos);
+                setTimerFd(deadlineToDelayNanos(timerFdDeadline));
+            }
+        }
+        return timerFdDeadline;
+        // Don't disarm the timerFd even if there are no more queued tasks. Since we are setting timerFd from outside
+        // the EventLoop it is possible that another thread has set the timer and we may miss a wakeup if we disarm
+        // the timer here. Instead we wait for the timer wakeup on the EventLoop and clear state for the next timer.
+    }
+
+    @Override
     protected void wakeup(boolean inEventLoop) {
-        if (!inEventLoop && WAKEN_UP_UPDATER.compareAndSet(this, 0, 1)) {
+        if (!inEventLoop && wakenUp.getAndSet(1) == 0) {
             // write to the evfd which will then wake-up epoll_wait(...)
             Native.eventFdWrite(eventFd.intValue(), 1L);
         }
@@ -171,7 +274,12 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         assert inEventLoop();
         int fd = ch.socket.intValue();
         Native.epollCtlAdd(epollFd.intValue(), fd, ch.flags);
-        channels.put(fd, ch);
+        ch.activeFlags = ch.flags;
+        AbstractEpollChannel old = channels.put(fd, ch);
+
+        // We either expect to have no Channel in the map with the same FD or that the FD of the old Channel is already
+        // closed.
+        assert old == null || !old.isOpen();
     }
 
     /**
@@ -180,6 +288,28 @@ final class EpollEventLoop extends SingleThreadEventLoop {
     void modify(AbstractEpollChannel ch) throws IOException {
         assert inEventLoop();
         Native.epollCtlMod(epollFd.intValue(), ch.socket.intValue(), ch.flags);
+        ch.activeFlags = ch.flags;
+    }
+
+    void updatePendingFlagsSet(AbstractEpollChannel ch) {
+        pendingFlagChannels.set(ch.socket.intValue(), ch.flags != ch.activeFlags);
+    }
+
+    private void processPendingChannelFlags() {
+        // Call epollCtlMod for any channels that require event interest changes before epollWaiting
+        if (!pendingFlagChannels.isEmpty()) {
+            for (int fd = 0; (fd = pendingFlagChannels.nextSetBit(fd)) >= 0; pendingFlagChannels.clear(fd)) {
+                AbstractEpollChannel ch = channels.get(fd);
+                if (ch != null) {
+                    try {
+                        ch.modifyEvents();
+                    } catch (IOException e) {
+                        ch.pipeline().fireExceptionCaught(e);
+                        ch.close();
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -187,140 +317,106 @@ final class EpollEventLoop extends SingleThreadEventLoop {
      */
     void remove(AbstractEpollChannel ch) throws IOException {
         assert inEventLoop();
+        int fd = ch.socket.intValue();
 
-        if (ch.isOpen()) {
-            int fd = ch.socket.intValue();
-            if (channels.remove(fd) != null) {
+        AbstractEpollChannel old = channels.remove(fd);
+        if (old != null && old != ch) {
+            // The Channel mapping was already replaced due FD reuse, put back the stored Channel.
+            channels.put(fd, old);
+
+            // If we found another Channel in the map that is mapped to the same FD the given Channel MUST be closed.
+            assert !ch.isOpen();
+        } else {
+            ch.activeFlags = 0;
+            pendingFlagChannels.clear(fd);
+            if (ch.isOpen()) {
                 // Remove the epoll. This is only needed if it's still open as otherwise it will be automatically
                 // removed once the file-descriptor is closed.
-                Native.epollCtlDel(epollFd.intValue(), ch.fd().intValue());
+                Native.epollCtlDel(epollFd.intValue(), fd);
             }
         }
     }
 
     @Override
     protected Queue<Runnable> newTaskQueue(int maxPendingTasks) {
+        return newTaskQueue0(maxPendingTasks);
+    }
+
+    private static Queue<Runnable> newTaskQueue0(int maxPendingTasks) {
         // This event loop never calls takeTask()
         return maxPendingTasks == Integer.MAX_VALUE ? PlatformDependent.<Runnable>newMpscQueue()
-                                                    : PlatformDependent.<Runnable>newMpscQueue(maxPendingTasks);
+                : PlatformDependent.<Runnable>newMpscQueue(maxPendingTasks);
     }
 
     @Override
-    public int pendingTasks() {
-        // As we use a MpscQueue we need to ensure pendingTasks() is only executed from within the EventLoop as
-        // otherwise we may see unexpected behavior (as size() is only allowed to be called by a single consumer).
-        // See https://github.com/netty/netty/issues/5297
-        if (inEventLoop()) {
-            return super.pendingTasks();
-        } else {
-            return submit(pendingTasksCallable).syncUninterruptibly().getNow();
-        }
-    }
-    /**
-     * Returns the percentage of the desired amount of time spent for I/O in the event loop.
-     */
-    public int getIoRatio() {
-        return ioRatio;
+    public int registeredChannels() {
+        return channels.size();
     }
 
-    /**
-     * Sets the percentage of the desired amount of time spent for I/O in the event loop.  The default value is
-     * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks.
-     */
-    public void setIoRatio(int ioRatio) {
-        if (ioRatio <= 0 || ioRatio > 100) {
-            throw new IllegalArgumentException("ioRatio: " + ioRatio + " (expected: 0 < ioRatio <= 100)");
-        }
-        this.ioRatio = ioRatio;
-    }
-
-    private int epollWait(boolean oldWakeup) throws IOException {
+    private int epollWait() throws IOException {
         // If a task was submitted when wakenUp value was 1, the task didn't get a chance to produce wakeup event.
         // So we need to check task queue again before calling epoll_wait. If we don't, the task might be pended
         // until epoll_wait was timed out. It might be pended until idle timeout if IdleStateHandler existed
         // in pipeline.
-        if (oldWakeup && hasTasks()) {
-            return epollWaitNow();
-        }
-
-        long totalDelay = delayNanos(System.nanoTime());
-        int delaySeconds = (int) min(totalDelay / 1000000000L, Integer.MAX_VALUE);
-        return Native.epollWait(epollFd, events, timerFd, delaySeconds,
-                (int) min(MAX_SCHEDULED_TIMERFD_NS, totalDelay - delaySeconds * 1000000000L));
+        return Native.epollWait(epollFd, events, hasTasks());
     }
 
     private int epollWaitNow() throws IOException {
-        return Native.epollWait(epollFd, events, timerFd, 0, 0);
+        return Native.epollWait(epollFd, events, true);
+    }
+
+    private int epollBusyWait() throws IOException {
+        return Native.epollBusyWait(epollFd, events);
     }
 
     @Override
     protected void run() {
+        long timerFdDeadline = Long.MAX_VALUE;
         for (;;) {
             try {
+                processPendingChannelFlags();
                 int strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                 switch (strategy) {
                     case SelectStrategy.CONTINUE:
                         continue;
+
+                    case SelectStrategy.BUSY_WAIT:
+                        strategy = epollBusyWait();
+                        break;
+
                     case SelectStrategy.SELECT:
-                        strategy = epollWait(WAKEN_UP_UPDATER.getAndSet(this, 0) == 1);
-
-                        // 'wakenUp.compareAndSet(false, true)' is always evaluated
-                        // before calling 'selector.wakeup()' to reduce the wake-up
-                        // overhead. (Selector.wakeup() is an expensive operation.)
-                        //
-                        // However, there is a race condition in this approach.
-                        // The race condition is triggered when 'wakenUp' is set to
-                        // true too early.
-                        //
-                        // 'wakenUp' is set to true too early if:
-                        // 1) Selector is waken up between 'wakenUp.set(false)' and
-                        //    'selector.select(...)'. (BAD)
-                        // 2) Selector is waken up between 'selector.select(...)' and
-                        //    'if (wakenUp.get()) { ... }'. (OK)
-                        //
-                        // In the first case, 'wakenUp' is set to true and the
-                        // following 'selector.select(...)' will wake up immediately.
-                        // Until 'wakenUp' is set to false again in the next round,
-                        // 'wakenUp.compareAndSet(false, true)' will fail, and therefore
-                        // any attempt to wake up the Selector will fail, too, causing
-                        // the following 'selector.select(...)' call to block
-                        // unnecessarily.
-                        //
-                        // To fix this problem, we wake up the selector again if wakenUp
-                        // is true immediately after selector.select(...).
-                        // It is inefficient in that it wakes up the selector for both
-                        // the first case (BAD - wake-up required) and the second case
-                        // (OK - no wake-up required).
-
-                        if (wakenUp == 1) {
-                            Native.eventFdWrite(eventFd.intValue(), 1L);
+                        if (wakenUp.get() == 1) {
+                            wakenUp.set(0);
+                        }
+                        if (!hasTasks()) {
+                            // When we are in the EventLoop we don't bother setting the timerFd for each
+                            // scheduled task, but instead defer the processing until the end of the EventLoop
+                            // (next wait) to reduce the timerFd modifications.
+                            timerFdDeadline = checkScheduleTaskQueueForNewDelay(timerFdDeadline);
+                            try {
+                                strategy = epollWait();
+                            } finally {
+                                // This getAndAdd will change the raw value of nextDeadlineNanos to be negative
+                                // which will block any *new* timerFd mods by other threads while also "preserving"
+                                // its last value to avoid disrupting a possibly-concurrent setTimerFd call
+                                // (so that we can know the timerFd really did/will get updated to the read value).
+                                timerFdDeadline = nextDeadlineNanos.getAndAdd(Long.MAX_VALUE + 1);
+                                // The value of nextDeadlineNanos is now guaranteed to be negative
+                            }
                         }
                         // fallthrough
                     default:
                 }
 
-                final int ioRatio = this.ioRatio;
-                if (ioRatio == 100) {
-                    try {
-                        if (strategy > 0) {
-                            processReady(events, strategy);
-                        }
-                    } finally {
-                        // Ensure we always run tasks.
-                        runAllTasks();
+                try {
+                    if (processReady(events, strategy)) {
+                        // Polled events include timerFd expiry; conservatively assume that no timer is set
+                        timerFdDeadline = Long.MAX_VALUE;
                     }
-                } else {
-                    final long ioStartTime = System.nanoTime();
-
-                    try {
-                        if (strategy > 0) {
-                            processReady(events, strategy);
-                        }
-                    } finally {
-                        // Ensure we always run tasks.
-                        final long ioTime = System.nanoTime() - ioStartTime;
-                        runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
-                    }
+                } finally {
+                    runAllTasks();
+                    // No need to drainScheduledQueue() after the fact, because all in event loop scheduling results
+                    // in direct addition to the scheduled priority queue.
                 }
                 if (allowGrowing && strategy == events.length()) {
                     //increase the size of the array as we needed the whole space for the events
@@ -343,7 +439,10 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         }
     }
 
-    private static void handleLoopException(Throwable t) {
+    /**
+     * Visible only for testing!
+     */
+    void handleLoopException(Throwable t) {
         logger.warn("Unexpected exception in the selector loop.", t);
 
         // Prevent possible consecutive immediate failures that lead to
@@ -361,28 +460,27 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         } catch (IOException ignore) {
             // ignore on close
         }
+
         // Using the intermediate collection to prevent ConcurrentModificationException.
         // In the `close()` method, the channel is deleted from `channels` map.
-        Collection<AbstractEpollChannel> array = new ArrayList<AbstractEpollChannel>(channels.size());
+        AbstractEpollChannel[] localChannels = channels.values().toArray(new AbstractEpollChannel[0]);
 
-        for (AbstractEpollChannel channel: channels.values()) {
-            array.add(channel);
-        }
-
-        for (AbstractEpollChannel ch: array) {
+        for (AbstractEpollChannel ch: localChannels) {
             ch.unsafe().close(ch.unsafe().voidPromise());
         }
     }
 
-    private void processReady(EpollEventArray events, int ready) {
-        for (int i = 0; i < ready; i ++) {
+    // Returns true if a timerFd event was encountered
+    private boolean processReady(EpollEventArray events, int ready) {
+        boolean timerFired = false;
+        for (int i = 0; i < ready; ++i) {
             final int fd = events.fd(i);
             if (fd == eventFd.intValue()) {
-                // consume wakeup event.
-                Native.eventFdRead(fd);
+                // Just ignore as we use ET mode for the eventfd and timerfd.
+                //
+                // See also https://stackoverflow.com/a/12492308/1074097
             } else if (fd == timerFd.intValue()) {
-                // consume wakeup event, necessary because the timer is added with ET mode.
-                Native.timerFdRead(fd);
+                timerFired = true;
             } else {
                 final long ev = events.events(i);
 
@@ -436,6 +534,7 @@ final class EpollEventLoop extends SingleThreadEventLoop {
                 }
             }
         }
+        return timerFired;
     }
 
     @Override
@@ -458,8 +557,14 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             }
         } finally {
             // release native memory
-            iovArray.release();
-            datagramPacketArray.release();
+            if (iovArray != null) {
+                iovArray.release();
+                iovArray = null;
+            }
+            if (datagramPacketArray != null) {
+                datagramPacketArray.release();
+                datagramPacketArray = null;
+            }
             events.free();
         }
     }

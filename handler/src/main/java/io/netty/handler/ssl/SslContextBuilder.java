@@ -20,6 +20,7 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
 
 import io.netty.util.internal.UnstableApi;
 
+import java.security.KeyStore;
 import java.security.Provider;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLException;
@@ -122,7 +123,7 @@ public final class SslContextBuilder {
      * Creates a builder for new server-side {@link SslContext}.
      *
      * If you use {@link SslProvider#OPENSSL} or {@link SslProvider#OPENSSL_REFCNT} consider using
-     * {@link OpenSslCachingX509KeyManagerFactory}.
+     * {@link OpenSslX509KeyManagerFactory} or {@link OpenSslCachingX509KeyManagerFactory}.
      *
      * @param keyManagerFactory non-{@code null} factory for server's private key
      * @see #keyManager(KeyManagerFactory)
@@ -149,6 +150,7 @@ public final class SslContextBuilder {
     private String[] protocols;
     private boolean startTls;
     private boolean enableOcsp;
+    private String keyStoreType = KeyStore.getDefaultType();
 
     private SslContextBuilder(boolean forServer) {
         this.forServer = forServer;
@@ -159,6 +161,14 @@ public final class SslContextBuilder {
      */
     public SslContextBuilder sslProvider(SslProvider provider) {
         this.provider = provider;
+        return this;
+    }
+
+    /**
+     * Sets the {@link KeyStore} type that should be used. {@code null} uses the default one.
+     */
+    public SslContextBuilder keyStoreType(String keyStoreType) {
+        this.keyStoreType = keyStoreType;
         return this;
     }
 
@@ -340,7 +350,7 @@ public final class SslContextBuilder {
      * you must use {@link #keyManager(File, File)} or {@link #keyManager(File, File, String)}.
      *
      * If you use {@link SslProvider#OPENSSL} or {@link SslProvider#OPENSSL_REFCNT} consider using
-     * {@link OpenSslCachingX509KeyManagerFactory}.
+     * {@link OpenSslX509KeyManagerFactory} or {@link OpenSslCachingX509KeyManagerFactory}.
      */
     public SslContextBuilder keyManager(KeyManagerFactory keyManagerFactory) {
         if (forServer) {
@@ -447,11 +457,11 @@ public final class SslContextBuilder {
             return SslContext.newServerContextInternal(provider, sslContextProvider, trustCertCollection,
                 trustManagerFactory, keyCertChain, key, keyPassword, keyManagerFactory,
                 ciphers, cipherFilter, apn, sessionCacheSize, sessionTimeout, clientAuth, protocols, startTls,
-                enableOcsp);
+                enableOcsp, keyStoreType);
         } else {
             return SslContext.newClientContextInternal(provider, sslContextProvider, trustCertCollection,
                 trustManagerFactory, keyCertChain, key, keyPassword, keyManagerFactory,
-                ciphers, cipherFilter, apn, protocols, sessionCacheSize, sessionTimeout, enableOcsp);
+                ciphers, cipherFilter, apn, protocols, sessionCacheSize, sessionTimeout, enableOcsp, keyStoreType);
         }
     }
 }

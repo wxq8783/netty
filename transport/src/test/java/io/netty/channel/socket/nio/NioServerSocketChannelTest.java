@@ -15,6 +15,7 @@
  */
 package io.netty.channel.socket.nio;
 
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.junit.Assert;
@@ -22,9 +23,12 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketOption;
+import java.net.StandardSocketOptions;
+import java.nio.channels.NetworkChannel;
 import java.nio.channels.ServerSocketChannel;
 
-public class NioServerSocketChannelTest {
+public class NioServerSocketChannelTest extends AbstractNioChannelTest<NioServerSocketChannel> {
 
     @Test
     public void testCloseOnError() throws Exception {
@@ -40,5 +44,37 @@ public class NioServerSocketChannelTest {
         } finally {
             group.shutdownGracefully();
         }
+    }
+
+    @Test
+    public void testIsActiveFalseAfterClose()  {
+        NioServerSocketChannel serverSocketChannel = new NioServerSocketChannel();
+        EventLoopGroup group = new NioEventLoopGroup(1);
+        try {
+            group.register(serverSocketChannel).syncUninterruptibly();
+            Channel channel = serverSocketChannel.bind(new InetSocketAddress(0)).syncUninterruptibly().channel();
+            Assert.assertTrue(channel.isActive());
+            Assert.assertTrue(channel.isOpen());
+            channel.close().syncUninterruptibly();
+            Assert.assertFalse(channel.isOpen());
+            Assert.assertFalse(channel.isActive());
+        } finally {
+            group.shutdownGracefully();
+        }
+    }
+
+    @Override
+    protected NioServerSocketChannel newNioChannel() {
+        return new NioServerSocketChannel();
+    }
+
+    @Override
+    protected NetworkChannel jdkChannel(NioServerSocketChannel channel) {
+        return channel.javaChannel();
+    }
+
+    @Override
+    protected SocketOption<?> newInvalidOption() {
+        return StandardSocketOptions.IP_MULTICAST_IF;
     }
 }

@@ -216,6 +216,12 @@ public abstract class Recycler<T> {
             if (object != value) {
                 throw new IllegalArgumentException("object does not belong to handle");
             }
+
+            Stack<?> stack = this.stack;
+            if (lastRecycledId != recycleId || stack == null) {
+                throw new IllegalStateException("recycled already");
+            }
+
             stack.push(this);
         }
     }
@@ -381,6 +387,7 @@ public abstract class Recycler<T> {
                     return false;
                 }
                 this.head.link = head = head.next;
+                this.head.reclaimSpace(LINK_CAPACITY);
             }
 
             final int srcStart = head.readIndex;
