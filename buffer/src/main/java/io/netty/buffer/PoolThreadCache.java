@@ -408,6 +408,7 @@ final class PoolThreadCache {
                 return false;
             }
             initBuf(entry.chunk, entry.nioBuffer, entry.handle, buf, reqCapacity);
+            //将弹出的entry扔到对象池进行复用//将弹出的entry扔到对象池进行复用
             entry.recycle();
 
             // allocations is not thread-safe which is fine as this is only called from the same thread all time.

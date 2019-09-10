@@ -1372,12 +1372,12 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         public void read(ChannelHandlerContext ctx) {
             unsafe.beginRead();
         }
-
+        //编码 write
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             unsafe.write(msg, promise);
         }
-
+        //编码 flush
         @Override
         public void flush(ChannelHandlerContext ctx) {
             unsafe.flush();
@@ -1403,7 +1403,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 destroy();
             }
         }
-
+        //TODO
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
             ctx.fireChannelActive();

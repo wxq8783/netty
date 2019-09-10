@@ -81,6 +81,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
+            //设置服务端是一个非阻塞的过程
             ch.configureBlocking(false);
         } catch (IOException e) {
             try {
@@ -374,6 +375,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
     @Override
     protected void doRegister() throws Exception {
+        //注册selector 调用jdk底层
         boolean selected = false;
         for (;;) {
             try {
@@ -398,7 +400,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     protected void doDeregister() throws Exception {
         eventLoop().cancel(selectionKey());
     }
-
+    //TODO
     @Override
     protected void doBeginRead() throws Exception {
         // Channel.read() or ChannelHandlerContext.read() was called

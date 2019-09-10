@@ -103,7 +103,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         for (int i = 0; i < smallSubpagePools.length; i ++) {
             smallSubpagePools[i] = newSubpagePoolHead(pageSize);
         }
-
+        //代表 内存使用率的集合
         q100 = new PoolChunkList<T>(this, null, 100, Integer.MAX_VALUE, chunkSize);
         q075 = new PoolChunkList<T>(this, q100, 75, 100, chunkSize);
         q050 = new PoolChunkList<T>(this, q075, 50, 100, chunkSize);
@@ -171,7 +171,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     static boolean isTiny(int normCapacity) {
         return (normCapacity & 0xFFFFFE00) == 0;
     }
-
+    //TODO WUXQ 命中缓存的分配流程
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
         final int normCapacity = normalizeCapacity(reqCapacity);
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
@@ -232,7 +232,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             allocateHuge(buf, reqCapacity);
         }
     }
-
+    //TODO WUXQ page级别内存分配
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
@@ -272,10 +272,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         } else {
             SizeClass sizeClass = sizeClass(normCapacity);
             if (cache != null && cache.add(this, chunk, nioBuffer, handle, normCapacity, sizeClass)) {
-                // cached so not free it.
+            //加到缓存
+            // cached so not free it.
                 return;
             }
-
+            //标记连续的内存区段为未使用
             freeChunk(chunk, handle, sizeClass, nioBuffer, false);
         }
     }

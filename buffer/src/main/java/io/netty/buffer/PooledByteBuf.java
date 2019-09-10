@@ -161,6 +161,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
     protected abstract ByteBuffer newInternalNioBuffer(T memory);
 
+    //TODO WUXQ 内存的回收
     @Override
     protected final void deallocate() {
         if (handle >= 0) {

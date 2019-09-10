@@ -137,7 +137,7 @@ final class PooledDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public ByteBuf getBytes(int index, ByteBuffer dst) {
-        dst.put(duplicateInternalNioBuffer(index, dst.remaining()));
+        getBytes(index, dst, false);
         return this;
     }
 
@@ -155,7 +155,7 @@ final class PooledDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         getBytes(index, out, length, false);
         return this;
     }
-
+    //TODO WUXQ writeAndFlush中Flush操作，把byteBuf转换为jdk的byteBuffer写入socket
     private void getBytes(int index, OutputStream out, int length, boolean internal) throws IOException {
         checkIndex(index, length);
         if (length == 0) {

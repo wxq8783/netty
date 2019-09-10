@@ -110,6 +110,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
                 }
 
                 if (buf.isReadable()) {
+                    //TODO WUXQ 编码 ----->
                     ctx.write(buf, promise);
                 } else {
                     buf.release();

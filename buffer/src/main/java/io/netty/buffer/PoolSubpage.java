@@ -77,6 +77,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     /**
      * Returns the bitmap index of the subpage allocation.
      */
+    //从我位图里找到一个未使用的subpage
     long allocate() {
         if (elemSize == 0) {
             return toHandle(0);

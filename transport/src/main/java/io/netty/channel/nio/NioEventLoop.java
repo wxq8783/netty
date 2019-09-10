@@ -649,7 +649,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         }
     }
-
+    //TODO  selectionKey的操作
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
         if (!k.isValid()) {
@@ -794,6 +794,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         try {
             int selectCnt = 0;
             long currentTimeNanos = System.nanoTime();
+            //定时任务队列 按照任务的截止时间的顺序 当前第一个任务的截止时间
             long selectDeadLineNanos = currentTimeNanos + delayNanos(currentTimeNanos);
 
             long normalizedDeadlineNanos = selectDeadLineNanos - initialNanoTime();
@@ -876,7 +877,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // Harmless exception - log anyway
         }
     }
-
+    //解决JDK空轮询的bug
     private Selector selectRebuildSelector(int selectCnt) throws IOException {
         // The selector returned prematurely many times in a row.
         // Rebuild the selector to work around the problem.

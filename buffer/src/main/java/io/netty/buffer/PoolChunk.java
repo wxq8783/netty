@@ -162,6 +162,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         memoryMap = new byte[maxSubpageAllocs << 1];
         depthMap = new byte[memoryMap.length];
         int memoryMapIndex = 1;
+        //初始化 一个page(8k)对应的地址分为深度+横向地址 组成
         for (int d = 0; d <= maxOrder; ++ d) { // move down the tree one level at a time
             int depth = 1 << d;
             for (int p = 0; p < depth; ++ p) {
@@ -319,6 +320,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @param normCapacity normalized capacity
      * @return index in memoryMap
      */
+    //TODO WUXQ page级别内存分配
     private long allocateRun(int normCapacity) {
         int d = maxOrder - (log2(normCapacity) - pageShifts);
         int id = allocateNode(d);
@@ -336,6 +338,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @param normCapacity normalized capacity
      * @return index in memoryMap
      */
+    //TODO WUXQ subPage级别内存分配
     private long allocateSubpage(int normCapacity) {
         // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
         // This is need as we may add it back and so alter the linked-list structure.
@@ -355,6 +358,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             int subpageIdx = subpageIdx(id);
             PoolSubpage<T> subpage = subpages[subpageIdx];
             if (subpage == null) {
+                //创建一个PoolSubPage
                 subpage = new PoolSubpage<T>(head, this, id, runOffset(id), pageSize, normCapacity);
                 subpages[subpageIdx] = subpage;
             } else {

@@ -347,6 +347,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
         return byteBuf.writeBytes(javaChannel(), allocHandle.attemptedBytesRead());
     }
 
+    //TODO WUXQ 调用JDK的API，把数据写入socket
     @Override
     protected int doWriteBytes(ByteBuf buf) throws Exception {
         final int expectedWrittenBytes = buf.readableBytes();

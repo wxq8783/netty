@@ -462,7 +462,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
-
+            //告诉channel 后续所有的IO相关事件的操作 交给eventLoop来处理
             AbstractChannel.this.eventLoop = eventLoop;
 
             if (eventLoop.inEventLoop()) {
@@ -878,7 +878,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 ReferenceCountUtil.release(msg);
                 return;
             }
-
+            //插入写队列
             outboundBuffer.addMessage(msg, size, promise);
         }
 
@@ -894,7 +894,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             outboundBuffer.addFlush();
             flush0();
         }
-
+        //TODO wuxq 编码
         @SuppressWarnings("deprecation")
         protected void flush0() {
             if (inFlush0) {

@@ -123,7 +123,7 @@ public class FastThreadLocal<V> {
     }
 
     private final int index;
-
+    //每个fastThreadLocal都有一个index值  且这个index在JVM中是唯一的
     public FastThreadLocal() {
         index = InternalThreadLocalMap.nextVariableIndex();
     }
