@@ -30,7 +30,10 @@ import io.netty.channel.socket.DatagramPacket;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.channels.NotYetConnectedException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -157,14 +160,19 @@ public class DatagramUnicastTest extends AbstractDatagramTest {
                 }
             });
 
-            final CountDownLatch latch = new CountDownLatch(count);
-            sc = setupServerChannel(sb, bytes, latch, false);
+            final SocketAddress sender;
             if (bindClient) {
                 cc = cb.bind(newSocketAddress()).sync().channel();
+                sender = cc.localAddress();
             } else {
                 cb.option(ChannelOption.DATAGRAM_CHANNEL_ACTIVE_ON_REGISTRATION, true);
                 cc = cb.register().sync().channel();
+                sender = null;
             }
+
+            final CountDownLatch latch = new CountDownLatch(count);
+            sc = setupServerChannel(sb, bytes, sender, latch, false);
+
             InetSocketAddress addr = (InetSocketAddress) sc.localAddress();
             for (int i = 0; i < count; i++) {
                 switch (wrapType) {
@@ -231,28 +239,21 @@ public class DatagramUnicastTest extends AbstractDatagramTest {
         DatagramChannel cc = null;
         try {
             final CountDownLatch latch = new CountDownLatch(count);
-            sc = setupServerChannel(sb, bytes, latch, true);
-            cc = (DatagramChannel) cb.connect(sc.localAddress()).sync().channel();
+            cc = (DatagramChannel) cb.bind(newSocketAddress()).sync().channel();
+            sc = setupServerChannel(sb, bytes, cc.localAddress(), latch, true);
 
+            cc.connect(sc.localAddress()).syncUninterruptibly();
+
+            List<ChannelFuture> futures = new ArrayList<ChannelFuture>();
             for (int i = 0; i < count; i++) {
-                switch (wrapType) {
-                    case DUP:
-                        cc.write(buf.retainedDuplicate());
-                        break;
-                    case SLICE:
-                        cc.write(buf.retainedSlice());
-                        break;
-                    case READ_ONLY:
-                        cc.write(buf.retain().asReadOnly());
-                        break;
-                    case NONE:
-                        cc.write(buf.retain());
-                        break;
-                    default:
-                        throw new Error("unknown wrap type: " + wrapType);
-                }
+                futures.add(write(cc, buf, wrapType));
             }
             cc.flush();
+
+            for (ChannelFuture future: futures) {
+                future.sync();
+            }
+
             assertTrue(latch.await(10, TimeUnit.SECONDS));
             assertTrue(clientLatch.await(10, TimeUnit.SECONDS));
             assertTrue(cc.isConnected());
@@ -274,8 +275,24 @@ public class DatagramUnicastTest extends AbstractDatagramTest {
         }
     }
 
+    private static ChannelFuture write(Channel cc, ByteBuf buf, WrapType wrapType) {
+        switch (wrapType) {
+            case DUP:
+                return cc.write(buf.retainedDuplicate());
+            case SLICE:
+                return cc.write(buf.retainedSlice());
+            case READ_ONLY:
+                return cc.write(buf.retain().asReadOnly());
+            case NONE:
+                return cc.write(buf.retain());
+            default:
+                throw new Error("unknown wrap type: " + wrapType);
+        }
+    }
+
     @SuppressWarnings("deprecation")
-    private Channel setupServerChannel(Bootstrap sb, final byte[] bytes, final CountDownLatch latch, final boolean echo)
+    private Channel setupServerChannel(Bootstrap sb, final byte[] bytes, final SocketAddress sender,
+                                       final CountDownLatch latch, final boolean echo)
             throws Throwable {
         sb.handler(new ChannelInitializer<Channel>() {
             @Override
@@ -283,6 +300,12 @@ public class DatagramUnicastTest extends AbstractDatagramTest {
                 ch.pipeline().addLast(new SimpleChannelInboundHandler<DatagramPacket>() {
                     @Override
                     public void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
+                        if (sender == null) {
+                            assertNotNull(msg.sender());
+                        } else {
+                            assertEquals(sender, msg.sender());
+                        }
+
                         ByteBuf buf = msg.content();
                         assertEquals(bytes.length, buf.readableBytes());
                         for (int i = 0; i < bytes.length; i++) {
