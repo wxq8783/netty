@@ -131,6 +131,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         }
     }
 
+
     @Override
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
         EventLoopTaskQueueFactory queueFactory = args.length == 4 ? (EventLoopTaskQueueFactory) args[3] : null;

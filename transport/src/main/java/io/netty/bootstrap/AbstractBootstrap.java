@@ -299,6 +299,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            //通过反射获取NioServerSocketChannel的实例 调用无参构造器实例
             channel = channelFactory.newChannel();
             init(channel);
         } catch (Throwable t) {

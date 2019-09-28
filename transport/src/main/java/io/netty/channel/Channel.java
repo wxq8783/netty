@@ -28,14 +28,14 @@ import java.net.SocketAddress;
 
 
 /**
- * A nexus to a network socket or a component which is capable of I/O
+ * A nexus(链接) to a network socket or a component which is capable of I/O
  * operations such as read, write, connect, and bind.
  * <p>
  * A channel provides a user:
  * <ul>
- * <li>the current state of the channel (e.g. is it open? is it connected?),</li>
- * <li>the {@linkplain ChannelConfig configuration parameters} of the channel (e.g. receive buffer size),</li>
- * <li>the I/O operations that the channel supports (e.g. read, write, connect, and bind), and</li>
+ * <li>the current state of the channel (e.g. is it open? is it connected?),</li> 获取channel当前的状态
+ * <li>the {@linkplain ChannelConfig configuration parameters} of the channel (e.g. receive buffer size),</li> 提供了关于channel的配置
+ * <li>the I/O operations that the channel supports (e.g. read, write, connect, and bind), and</li> 提供了一些IO操作
  * <li>the {@link ChannelPipeline} which handles all I/O events and requests
  *     associated with the channel.</li>
  * </ul>

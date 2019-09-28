@@ -137,7 +137,7 @@ final class PooledDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public ByteBuf getBytes(int index, ByteBuffer dst) {
-        getBytes(index, dst, false);
+        dst.put(duplicateInternalNioBuffer(index, dst.remaining()));
         return this;
     }
 

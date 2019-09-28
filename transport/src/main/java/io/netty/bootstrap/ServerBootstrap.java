@@ -206,7 +206,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
             setChannelOptions(child, childOptions, logger);
             setAttributes(child, childAttrs);
-
+            //从mainReactor向subReactor转移 从Acceptor向IO线程转移
             try {
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
