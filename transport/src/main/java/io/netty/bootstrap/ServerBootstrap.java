@@ -140,13 +140,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 final ChannelPipeline pipeline = ch.pipeline();
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
+                    // 添加 handler 到 pipeline 中
                     pipeline.addLast(handler);
                 }
 
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
-                        //添加连接器
+                        // 用child相关的参数创建出一个新连接接入器ServerBootstrapAcceptor
+                        // 通过 ServerBootstrapAcceptor 可以将一个新连接绑定到一个线程上去
+                        // 每次有新的连接进来 ServerBootstrapAcceptor 都会用child相关的属性对它们进行配置，并注册到ChildGroup上去
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }

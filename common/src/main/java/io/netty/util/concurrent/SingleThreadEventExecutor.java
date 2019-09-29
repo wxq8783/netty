@@ -81,7 +81,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                     SingleThreadEventExecutor.class, ThreadProperties.class, "threadProperties");
 
     private final Queue<Runnable> taskQueue;
-
+    //这个线程就是I/O线程  一个EventLoop就只有一个这样的Thread
     private volatile Thread thread;
     @SuppressWarnings("unused")
     private volatile ThreadProperties threadProperties;
@@ -1027,7 +1027,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
         return false;
     }
-
+    //启动的时候 设置线程
     private void doStartThread() {
         assert thread == null;
         executor.execute(new Runnable() {

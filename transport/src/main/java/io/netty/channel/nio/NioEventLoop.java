@@ -132,6 +132,16 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private int cancelledKeys;
     private boolean needsToSelectAgain;
 
+    /**
+     * @param parent  NioEventLoopGroup  bossGroup
+     * @param executor 线程执行器 ThreadPerTaskExecutor
+     * @param selectorProvider
+     * @param strategy
+     * @param rejectedExecutionHandler
+     * @param queueFactory
+     *
+     * 创建Selector 和 selectedKeys
+     */
     NioEventLoop(NioEventLoopGroup parent, Executor executor, SelectorProvider selectorProvider,
                  SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler,
                  EventLoopTaskQueueFactory queueFactory) {
@@ -149,7 +159,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         unwrappedSelector = selectorTuple.unwrappedSelector;
         selectStrategy = strategy;
     }
-
+    //生成一个任务执行队列 MpscQueue
     private static Queue<Runnable> newTaskQueue(
             EventLoopTaskQueueFactory queueFactory) {
         if (queueFactory == null) {
@@ -314,6 +324,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             register0(ch, interestOps, task);
         } else {
             try {
+                //将channel注册时 可能会阻塞很长时间
                 // Offload to the EventLoop as otherwise java.nio.channels.spi.AbstractSelectableChannel.register
                 // may block for a long time while trying to obtain an internal lock that may be hold while selecting.
                 submit(new Runnable() {

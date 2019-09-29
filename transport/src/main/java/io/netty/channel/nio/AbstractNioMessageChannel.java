@@ -55,6 +55,8 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
         super.doBeginRead();
     }
 
+    //该类为Channel提供了用于完成网络通讯相关的底层操作，
+    // 如connect(),read(),register(),bind(),close()等；
     private final class NioMessageUnsafe extends AbstractNioUnsafe {
 
         private final List<Object> readBuf = new ArrayList<Object>();

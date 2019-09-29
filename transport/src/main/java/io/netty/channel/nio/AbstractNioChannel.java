@@ -400,7 +400,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     protected void doDeregister() throws Exception {
         eventLoop().cancel(selectionKey());
     }
-    //TODO
+    //TODO 注册
     @Override
     protected void doBeginRead() throws Exception {
         // Channel.read() or ChannelHandlerContext.read() was called
@@ -410,7 +410,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         }
 
         readPending = true;
-
+        //一个是selectionKey,一个是readInterestOp
         final int interestOps = selectionKey.interestOps();
         if ((interestOps & readInterestOp) == 0) {
             selectionKey.interestOps(interestOps | readInterestOp);

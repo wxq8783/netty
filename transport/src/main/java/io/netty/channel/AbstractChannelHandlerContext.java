@@ -667,6 +667,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         final AbstractChannelHandlerContext next = findContextOutbound(MASK_READ);
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
+            //
             next.invokeRead();
         } else {
             Tasks tasks = next.invokeTasks;

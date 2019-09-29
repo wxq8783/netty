@@ -261,6 +261,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        //初始化和注册
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -301,6 +302,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         try {
             //通过反射获取NioServerSocketChannel的实例 调用无参构造器实例
             channel = channelFactory.newChannel();
+            //初始化
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {

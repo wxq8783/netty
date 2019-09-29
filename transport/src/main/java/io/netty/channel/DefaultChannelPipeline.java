@@ -1404,11 +1404,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 destroy();
             }
         }
-        //TODO
+
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
             ctx.fireChannelActive();
-
+            //将ServerSocketChannel所需要的兴趣事件注册到selector
             readIfIsAutoRead();
         }
 

@@ -55,9 +55,13 @@ public final class EchoServer {
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
+              //设置创建channel的工厂，后面会调用NioServerSocketChannel的无参构造器初始化
              .channel(NioServerSocketChannel.class)
+              //服务端将不能处理的客户端的链接存放在队列里 backlog指定了队列的大小
              .option(ChannelOption.SO_BACKLOG, 100)
+              //这个最终会绑定到NioServerSocketChannel的pipeline上
              .handler(new LoggingHandler(LogLevel.INFO))
+              //这个最终会绑定到新链接进来的NioSocketChannel的pipeline上
              .childHandler(new ChannelInitializer<SocketChannel>() {
                  @Override
                  public void initChannel(SocketChannel ch) throws Exception {

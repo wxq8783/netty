@@ -73,14 +73,16 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
+            //创建 线程执启动器
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
-
+        //创建EventLoop的数组
         children = new EventExecutor[nThreads];
 
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+                //创建EventLoop，存储在children中
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
@@ -107,7 +109,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
                 }
             }
         }
-
+        //创建一下EventLoop选择器 分两种情况 普通的(GenericEventExecutorChooser)和2的幂次方(PowerOfTwoEventExecutorChooser)
         chooser = chooserFactory.newChooser(children);
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
@@ -129,6 +131,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
     }
 
     protected ThreadFactory newDefaultThreadFactory() {
+        //新建一个 线程工厂类 可以创建FastThreadLocalThread
         return new DefaultThreadFactory(getClass());
     }
 

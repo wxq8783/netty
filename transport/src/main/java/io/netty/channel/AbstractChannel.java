@@ -462,12 +462,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
-            //告诉channel 后续所有的IO相关事件的操作 交给eventLoop来处理
+            //告诉channel 后续所有的IO相关事件的操作 交给当前的eventLoop来处理
             AbstractChannel.this.eventLoop = eventLoop;
-
+            //如果eventLoop已经启动过了，则直接执行注册流程
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
+                //没有没有启动，则将注册任务放到队列中，后面从队列中取出来执行
                 try {
                     eventLoop.execute(new Runnable() {
                         @Override
@@ -494,12 +495,16 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                //这个方法在selector上注册了NioServerSocketChannel实例，但是没有绑定任何兴趣事件。
+                // 我们要知道，一个ServerSocketChannel要想接受客户端的连接必须要绑定一个Accept的兴趣事件的，
+                // 所以这里的注册流程还是不完整的，后面肯定有方法将这个坑给填上
                 doRegister();
                 neverRegistered = false;
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                //主要功能是将handler在咱们的pipeline这个管道中串联起来，方便后面的业务处理流程
                 pipeline.invokeHandlerAddedIfNeeded();
 
                 safeSetSuccess(promise);
@@ -508,6 +513,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {
                     if (firstRegistration) {
+                        //前面doRegister()只是将channel注册到selector上面了，但是未绑定兴趣事件。
+                        // 这里就是一个填坑的操作，将ServerSocketChannel所需要的兴趣事件给补充上了
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
