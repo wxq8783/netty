@@ -454,9 +454,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     @Override
     protected void run() {
+        //无限for循环
         for (;;) {
             try {
                 try {
+                    //检查是否有IO事件
                     switch (selectStrategy.calculateStrategy(selectNowSupplier, hasTasks())) {
                     case SelectStrategy.CONTINUE:
                         continue;
@@ -467,9 +469,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     case SelectStrategy.SELECT:
                         select(wakenUp.getAndSet(false));
 
-                        // 'wakenUp.compareAndSet(false, true)' is always evaluated
-                        // before calling 'selector.wakeup()' to reduce the wake-up
-                        // overhead. (Selector.wakeup() is an expensive operation.)
+                        // 'wakenUp.compareAndSet(false, true)' is always evaluated(估计; 评价; 评估)
+                        // before calling 'selector.wakeup()' to reduce(减少，缩小(尺寸、数量、价格等); (使) 蒸发; 减轻体重; 节食;) the wake-up
+                        // overhead(在上方的). (Selector.wakeup() is an expensive operation.)
                         //
                         // However, there is a race condition in this approach.
                         // The race condition is triggered when 'wakenUp' is set to
@@ -496,6 +498,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // (OK - no wake-up required).
 
                         if (wakenUp.get()) {
+                            //wakeup方法会让阻塞的线程立即返回(interrupt()给线程发个中断信号实现的)
+                            // 唤醒阻塞在selector.select上的线程，让该线程及时去处理其他事情，例如注册channel，改变interestOps、判断超时等等。
                             selector.wakeup();
                         }
                         // fall through
@@ -514,9 +518,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 final int ioRatio = this.ioRatio;
                 if (ioRatio == 100) {
                     try {
+                        //处理IO事件
                         processSelectedKeys();
                     } finally {
-                        // Ensure we always run tasks.
+                        // Ensure we always run tasks. 处理异步队列
                         runAllTasks();
                     }
                 } else {
@@ -604,6 +609,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         Iterator<SelectionKey> i = selectedKeys.iterator();
         for (;;) {
             final SelectionKey k = i.next();
+            //k.attachment() 返回一个包装的channel
             final Object a = k.attachment();
             i.remove();
 
@@ -660,7 +666,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         }
     }
-    //TODO  selectionKey的操作
+    //  selectionKey的操作
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
         if (!k.isValid()) {

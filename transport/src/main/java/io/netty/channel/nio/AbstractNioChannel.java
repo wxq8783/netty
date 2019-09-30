@@ -379,6 +379,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                //netty是把服务端的channel(即此处的this)，作为一个attachment，绑定到底层的selector上面的
+                // 这里我们将这个 SocketChannel 注册到与 eventLoop 关联的 selector 上了
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

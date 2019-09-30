@@ -68,10 +68,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      *        the parent of this channel. {@code null} if there's no parent.
      */
     protected AbstractChannel(Channel parent) {
-        this.parent = parent;
-        id = newId();
-        unsafe = newUnsafe();
-        pipeline = newChannelPipeline();
+        this.parent = parent;//null
+        id = newId();//创建channel的ID
+        unsafe = newUnsafe();//创建一个unsafe
+        pipeline = newChannelPipeline();//创建DefaultChannelPipeline
     }
 
     /**
@@ -468,7 +468,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
-                //没有没有启动，则将注册任务放到队列中，后面从队列中取出来执行
+                //没有启动，则将注册任务放到队列中，后面从队列中取出来执行
                 try {
                     eventLoop.execute(new Runnable() {
                         @Override
@@ -506,7 +506,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 // user may already fire events through the pipeline in the ChannelFutureListener.
                 //主要功能是将handler在咱们的pipeline这个管道中串联起来，方便后面的业务处理流程
                 pipeline.invokeHandlerAddedIfNeeded();
-
+                //重要  设置回调
                 safeSetSuccess(promise);
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing

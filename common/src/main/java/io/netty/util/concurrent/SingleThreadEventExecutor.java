@@ -869,7 +869,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
         return isTerminated();
     }
-
+    //EventLoop线程启动
     @Override
     public void execute(Runnable task) {
         if (task == null) {
@@ -877,6 +877,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
 
         boolean inEventLoop = inEventLoop();
+        //添加到队列中
         addTask(task);
         if (!inEventLoop) {
             startThread();
@@ -996,6 +997,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void startThread() {
         if (state == ST_NOT_STARTED) {
+            //使用AtomicIntegerFieldUpdater 对对象中某个字段进行CAS操作 把state设置为2
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
                 boolean success = false;
                 try {
@@ -1033,6 +1035,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                //设置线程
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();
@@ -1041,6 +1044,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
+                    //启动线程 启动一个无限for循环 查询IO事件
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {

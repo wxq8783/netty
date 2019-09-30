@@ -148,7 +148,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                     @Override
                     public void run() {
                         // 用child相关的参数创建出一个新连接接入器ServerBootstrapAcceptor
-                        // 通过 ServerBootstrapAcceptor 可以将一个新连接绑定到一个线程上去
+                        // 通过 ServerBootstrapAcceptor 可以将一个新连接绑定到一个线程上去 添加连接器 (给accept的新连接，分配一个nio线程)
                         // 每次有新的连接进来 ServerBootstrapAcceptor 都会用child相关的属性对它们进行配置，并注册到ChildGroup上去
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));

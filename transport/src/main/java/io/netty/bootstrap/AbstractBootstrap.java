@@ -300,7 +300,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
-            //通过反射获取NioServerSocketChannel的实例 调用无参构造器实例
+            //通过反射获取NioServerSocketChannel的实例 调用无参构造器实例 创建了jdk的channel 并对jdk的Channel进行封装
             channel = channelFactory.newChannel();
             //初始化
             init(channel);
@@ -315,7 +315,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-        //将channel注册到reactor
+        //将channel注册到reactor  group()为MultithreadEventLoopGroup
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -326,7 +326,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
 
         // If we are here and the promise is not failed, it's one of the following cases:
-        // 1) If we attempted registration from the event loop, the registration has been completed at this point.
+        // 1) If we attempted(努力; 尝试; 试图) registration from the event loop, the registration has been completed at this point.
         //    i.e. It's safe to attempt bind() or connect() now because the channel has been registered.
         // 2) If we attempted registration from the other thread, the registration request has been successfully
         //    added to the event loop's task queue for later execution.
@@ -345,6 +345,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
         // the pipeline in its channelRegistered() implementation.
+        //在触发channelRegistered()之前调用此方法。让用户处理程序有机会在其channelRegistered()实现中设置管道
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
