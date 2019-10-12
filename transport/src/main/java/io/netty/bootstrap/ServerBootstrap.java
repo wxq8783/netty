@@ -133,7 +133,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         final Entry<ChannelOption<?>, Object>[] currentChildOptions =
                 childOptions.entrySet().toArray(newOptionArray(0));
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(0));
-
+        //服务端的Channel的pipeline构成是 Head-->ServerBootstrapAcceptor-->Tail
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
@@ -183,7 +183,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 final Channel channel, EventLoopGroup childGroup, ChannelHandler childHandler,
                 Entry<ChannelOption<?>, Object>[] childOptions, Entry<AttributeKey<?>, Object>[] childAttrs) {
             this.childGroup = childGroup;
-            this.childHandler = childHandler;
+            this.childHandler = childHandler; //childHandler 就是一个 ChannelInitializer
             this.childOptions = childOptions;
             this.childAttrs = childAttrs;
 
@@ -203,14 +203,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
-            final Channel child = (Channel) msg;
-
+            final Channel child = (Channel) msg;//NioSocketChanel
+            //添加channelHandler
             child.pipeline().addLast(childHandler);
-
+            //设置ChannelOptions  和TCP读写相关的
             setChannelOptions(child, childOptions, logger);
+            //设置Attributes 绑定一些额外的属性
             setAttributes(child, childAttrs);
-            //从mainReactor向subReactor转移 从Acceptor向IO线程转移
+            //从mainReactor向subReactor转移 从Acceptor向IO线程转移   选择NioEventLoop并注册selector
             try {
+                //childGroup 就是一个workGroup
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

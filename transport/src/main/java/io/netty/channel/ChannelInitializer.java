@@ -100,6 +100,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
     }
 
     /**
+     * 给新连接添加Handler
      * {@inheritDoc} If override this method ensure you call super!
      */
     @Override

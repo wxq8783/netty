@@ -147,7 +147,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
         try {
             if (ch != null) {
-                //封装成NIOSocketChannel
+                //封装成NioSocketChannel
                 buf.add(new NioSocketChannel(this, ch));
                 return 1;
             }

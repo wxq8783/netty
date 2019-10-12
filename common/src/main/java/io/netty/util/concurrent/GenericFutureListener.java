@@ -25,7 +25,7 @@ public interface GenericFutureListener<F extends Future<?>> extends EventListene
 
     /**
      * Invoked when the operation associated with the {@link Future} has been completed.
-     *
+     *  当与这个future相关联的操作完成之后，这个方法会被调用
      * @param future  the source {@link Future} which called this callback
      */
     void operationComplete(F future) throws Exception;

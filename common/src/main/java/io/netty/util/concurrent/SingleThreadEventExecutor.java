@@ -307,7 +307,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             }
         }
     }
-
+    //聚合任务 把定时任务加入到taskQueue
     private boolean fetchFromScheduledTaskQueue() {
         if (scheduledTaskQueue == null || scheduledTaskQueue.isEmpty()) {
             return true;
@@ -463,6 +463,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             return false;
         }
         for (;;) {
+            //执行任务
             safeExecute(task);
             task = pollTaskFrom(taskQueue);
             if (task == null) {
@@ -1032,6 +1033,8 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     //启动的时候 设置线程
     private void doStartThread() {
         assert thread == null;
+        // executor 创建NioEventLoop时创建的ThreadPerTaskExecutor
+        //executor.execute() 就是threadFactory.newThread(Runnable command).start(); 启动一个线程
         executor.execute(new Runnable() {
             @Override
             public void run() {
@@ -1044,7 +1047,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
-                    //启动线程 启动一个无限for循环 查询IO事件
+                    //调用nioEventLoop的run方法  启动一个无限for循环 查询IO事件
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {

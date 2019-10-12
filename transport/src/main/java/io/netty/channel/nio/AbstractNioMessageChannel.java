@@ -66,6 +66,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             assert eventLoop().inEventLoop();
             final ChannelConfig config = config();
             final ChannelPipeline pipeline = pipeline();
+            //处理服务端接入的速率
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
             allocHandle.reset(config);
 
@@ -74,6 +75,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             try {
                 try {
                     do {
+                        //获取appect 的channel
                         int localRead = doReadMessages(readBuf);
                         if (localRead == 0) {
                             break;
@@ -90,8 +92,10 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 }
 
                 int size = readBuf.size();
+                //遍历每一条的客户端连接 服务端的Channel的pipeline构成是 Head-->ServerBootstrapAcceptor-->Tail
                 for (int i = 0; i < size; i ++) {
                     readPending = false;
+                    //把客户端的每一条连接通过fireChannelRead的方式 逐层传递到ServerBootstrap.ServerBootstrapAcceptor的channelRead()方法中
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
