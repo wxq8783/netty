@@ -402,7 +402,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     protected void doDeregister() throws Exception {
         eventLoop().cancel(selectionKey());
     }
-    //TODO 注册
+    //注册(NioServerSocketChannel的构造函数中传入的事件)注册Accept事件 或 注册read事件(NioSocketChannel的构造函数中传入的事件)
     @Override
     protected void doBeginRead() throws Exception {
         // Channel.read() or ChannelHandlerContext.read() was called

@@ -223,6 +223,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         if (invokeHandler()) {
             try {
                 //read的时候 调用HeadContext的channelActive
+                //defaultChannelPipeline.HeadContext.channelActive()
                 ((ChannelInboundHandler) handler()).channelActive(this);
             } catch (Throwable t) {
                 notifyHandlerException(t);
@@ -958,7 +959,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         boolean updated = HANDLER_STATE_UPDATER.compareAndSet(this, INIT, ADD_PENDING);
         assert updated; // This should always be true as it MUST be called before setAddComplete() or setRemoved().
     }
-
+    //回调到用户代码中ChannelInitializer.handlerAdded()
     final void callHandlerAdded() throws Exception {
         // We must call setAddComplete before calling handlerAdded. Otherwise if the handlerAdded method generates
         // any pipeline events ctx.handler() will miss them because the state will not allow it.
