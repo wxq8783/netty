@@ -90,7 +90,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private boolean registered;
 
     protected DefaultChannelPipeline(Channel channel) {
-        this.channel = ObjectUtil.checkNotNull(channel, "channel");
+        this.channel = ObjectUtil.checkNotNull(channel, "channel");//对channel进行保存
         succeededFuture = new SucceededChannelFuture(channel, null);
         voidPromise =  new VoidChannelPromise(channel, true);
 
@@ -199,12 +199,13 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     public final ChannelPipeline addLast(EventExecutorGroup group, String name, ChannelHandler handler) {
         final AbstractChannelHandlerContext newCtx;
         synchronized (this) {
+            //判断是否重复提交
             checkMultiplicity(handler);
-
+            //封装一个DefaultChannelHandlerContext
             newCtx = newContext(group, filterName(name, handler), handler);
-
+            //组装为 一个双向链表
             addLast0(newCtx);
-
+            //回调 添加完成的事件
             // If the registered is false it means that the channel was not registered on an eventLoop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
@@ -457,6 +458,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         assert ctx != head && ctx != tail;
 
         synchronized (this) {
+            //删除节点
             atomicRemoveFromHandlerList(ctx);
 
             // If the registered is false it means that the channel was not registered on an eventloop yet.
@@ -478,6 +480,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 return ctx;
             }
         }
+        //删除后回调
         callHandlerRemoved0(ctx);
         return ctx;
     }
@@ -1097,6 +1100,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         }
     }
 
+    /**
+     * 找到 要 删除的节点
+     * @param handlerType
+     * @return
+     */
     private AbstractChannelHandlerContext getContextOrDie(Class<? extends ChannelHandler> handlerType) {
         AbstractChannelHandlerContext ctx = (AbstractChannelHandlerContext) context(handlerType);
         if (ctx == null) {
@@ -1297,7 +1305,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             onUnhandledInboundUserEventTriggered(evt);
         }
-
+        //对异常的信息 捕获
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             onUnhandledInboundException(cause);
@@ -1316,7 +1324,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     final class HeadContext extends AbstractChannelHandlerContext
             implements ChannelOutboundHandler, ChannelInboundHandler {
-
+        //实现 底层 的读写
         private final Unsafe unsafe;
 
         HeadContext(DefaultChannelPipeline pipeline) {
@@ -1408,7 +1416,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
             ctx.fireChannelActive();
-            //将ServerSocketChannel所需要的兴趣事件注册到selector
+            //将NioServerSocketChannel NioSocketChannel所需要的兴趣事件注册到selector
             readIfIsAutoRead();
         }
 
