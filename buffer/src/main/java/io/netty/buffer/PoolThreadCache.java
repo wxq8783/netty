@@ -124,7 +124,7 @@ final class PoolThreadCache {
             @SuppressWarnings("unchecked")
             MemoryRegionCache<T>[] cache = new MemoryRegionCache[numCaches];
             for (int i = 0; i < cache.length; i++) {
-                // TODO: maybe use cacheSize / cache.length
+                // TODO: maybe use cacheSize / cache.lgthen
                 cache[i] = new SubPageMemoryRegionCache<T>(cacheSize, sizeClass);
             }
             return cache;
@@ -186,6 +186,7 @@ final class PoolThreadCache {
             // no cache found so just return false here
             return false;
         }
+        //从queue中弹出一个entry
         boolean allocated = cache.allocate(buf, reqCapacity);
         if (++ allocations >= freeSweepAllocationThreshold) {
             allocations = 0;
@@ -303,7 +304,7 @@ final class PoolThreadCache {
         }
         cache.trim();
     }
-
+    //找到节点
     private MemoryRegionCache<?> cacheForTiny(PoolArena<?> area, int normCapacity) {
         int idx = PoolArena.tinyIdx(normCapacity);
         if (area.isDirect()) {
@@ -407,6 +408,7 @@ final class PoolThreadCache {
             if (entry == null) {
                 return false;
             }
+            //给ByteBuf初始化
             initBuf(entry.chunk, entry.nioBuffer, entry.handle, buf, reqCapacity);
             //将弹出的entry扔到对象池进行复用//将弹出的entry扔到对象池进行复用
             entry.recycle();

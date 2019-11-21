@@ -74,7 +74,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     protected final void resetRefCnt() {
         updater.resetRefCnt(this);
     }
-
+    //引用计数+1
     @Override
     public ByteBuf retain() {
         return updater.retain(this);

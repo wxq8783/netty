@@ -356,6 +356,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     static void invokeChannelRead(final AbstractChannelHandlerContext next, Object msg) {
         final Object m = next.pipeline.touch(ObjectUtil.checkNotNull(msg, "msg"), next);
+        //获得执行线程
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
             next.invokeChannelRead(m);

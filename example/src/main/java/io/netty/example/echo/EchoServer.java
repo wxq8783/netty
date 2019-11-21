@@ -70,7 +70,9 @@ public final class EchoServer {
                          p.addLast(sslCtx.newHandler(ch.alloc()));
                      }
                      //p.addLast(new LoggingHandler(LogLevel.INFO));
-                     p.addLast(serverHandler);
+                     p.addLast(new InBoundHandlerA());
+                     p.addLast(new InBoundHandlerB());
+                     p.addLast(new InBoundHandlerC());
                  }
              });
 

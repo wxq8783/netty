@@ -60,13 +60,15 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
     private final class NioMessageUnsafe extends AbstractNioUnsafe {
 
         private final List<Object> readBuf = new ArrayList<Object>();
-
+        //处理新连接的
         @Override
         public void read() {
             assert eventLoop().inEventLoop();
+            //NioServerSocketChannel的配置
             final ChannelConfig config = config();
+            //NioServerSocketChannel的ChannelPipeline
             final ChannelPipeline pipeline = pipeline();
-            //处理服务端接入的速率
+            //分配一个新的接收缓冲区，该缓冲区的容量可能大到足以读取所有入站数据，也足够小不要浪费空间。
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
             allocHandle.reset(config);
 
@@ -76,6 +78,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 try {
                     do {
                         //获取appect 的channel
+                        // 在这里面是来循环读取请求的连接，并新建一个NioSocketChannel 然后存储到readBuf中
                         int localRead = doReadMessages(readBuf);
                         if (localRead == 0) {
                             break;

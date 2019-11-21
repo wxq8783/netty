@@ -248,6 +248,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         int pageShifts = validateAndCalculatePageShifts(pageSize);
 
         if (nHeapArena > 0) {
+            //heapArenas的创建
             heapArenas = newArenaArray(nHeapArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(heapArenas.length);
             for (int i = 0; i < heapArenas.length; i ++) {
@@ -264,6 +265,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         }
 
         if (nDirectArena > 0) {
+            //directArenas的创建
             directArenas = newArenaArray(nDirectArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(directArenas.length);
             for (int i = 0; i < directArenas.length; i ++) {

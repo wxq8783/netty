@@ -49,8 +49,9 @@ import static io.netty.util.internal.StringUtil.NEWLINE;
 import static io.netty.util.internal.StringUtil.isSurrogate;
 
 /**
- * A collection of utility methods that is related with handling {@link ByteBuf},
+ * A collection of utility(实用、通用) methods that is related with handling {@link ByteBuf},
  * such as the generation of hex dump and swapping an integer's byte order.
+ * 与处理{@link ByteBuf}相关的一组实用程序方法，例如生成十六进制转储和交换整数的字节顺序。
  */
 public final class ByteBufUtil {
 
@@ -69,6 +70,7 @@ public final class ByteBufUtil {
             (int) CharsetUtil.encoder(CharsetUtil.UTF_8).maxBytesPerChar();
 
     static final int WRITE_CHUNK_SIZE = 8192;
+    //默认的ByteBufAllocator
     static final ByteBufAllocator DEFAULT_ALLOCATOR;
 
     static {

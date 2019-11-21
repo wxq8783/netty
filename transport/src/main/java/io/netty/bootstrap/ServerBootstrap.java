@@ -204,7 +204,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             final Channel child = (Channel) msg;//NioSocketChanel
-            //添加channelHandler
+            //添加channelHandler 就是我们自己写的那些Handler
             child.pipeline().addLast(childHandler);
             //设置ChannelOptions  和TCP读写相关的
             setChannelOptions(child, childOptions, logger);
@@ -212,7 +212,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             setAttributes(child, childAttrs);
             //从mainReactor向subReactor转移 从Acceptor向IO线程转移   选择NioEventLoop并注册selector
             try {
-                //childGroup 就是一个workGroup
+                //childGroup 就是一个workGroup 把客户端的NioSocketChannel注册到workGroup中的eventLoop中
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

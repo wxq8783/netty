@@ -285,8 +285,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     /**
-     * Algorithm to allocate an index in memoryMap when we query for a free node
-     * at depth d
+     * Algorithm to allocate an index in memoryMap when we query for a free node at depth d
      *
      * @param d depth
      * @return index in memoryMap
@@ -320,7 +319,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @param normCapacity normalized capacity
      * @return index in memoryMap
      */
-    //TODO WUXQ page级别内存分配
+    //page级别内存分配
     private long allocateRun(int normCapacity) {
         int d = maxOrder - (log2(normCapacity) - pageShifts);
         int id = allocateNode(d);

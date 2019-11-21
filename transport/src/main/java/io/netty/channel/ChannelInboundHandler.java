@@ -22,21 +22,25 @@ package io.netty.channel;
 public interface ChannelInboundHandler extends ChannelHandler {
 
     /**
+     * 回调方法 channel注册在NioEventLoop对应的Selector()后的回调的channelHandler
      * The {@link Channel} of the {@link ChannelHandlerContext} was registered with its {@link EventLoop}
      */
     void channelRegistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     *
      * The {@link Channel} of the {@link ChannelHandlerContext} was unregistered from its {@link EventLoop}
      */
     void channelUnregistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * channe在激活或失效的回调
      * The {@link Channel} of the {@link ChannelHandlerContext} is now active
      */
     void channelActive(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * channe在激活或失效的回调
      * The {@link Channel} of the {@link ChannelHandlerContext} was registered is now inactive and reached its
      * end of lifetime.
      */

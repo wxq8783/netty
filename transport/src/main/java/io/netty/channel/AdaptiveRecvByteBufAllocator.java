@@ -40,7 +40,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
 
     private static final int INDEX_INCREMENT = 4;
     private static final int INDEX_DECREMENT = 1;
-
+    //使用slab的思想记录了不同的内存块大小，按照分配需要的大小寻找最合适的内存块
     private static final int[] SIZE_TABLE;
 
     static {
@@ -136,7 +136,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
                 decreaseNow = false;
             }
         }
-
+        //读取完成后 调用 计算需要的内存
         @Override
         public void readComplete() {
             record(totalBytesRead());
@@ -148,8 +148,8 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
     private final int initial;
 
     /**
-     * Creates a new predictor with the default parameters.  With the default
-     * parameters, the expected buffer size starts from {@code 1024}, does not
+     * Creates a new predictor(预报器、预言者) with the default parameters(参数).  With the default
+     * parameters, the expected(预期、期盼) buffer size starts from {@code 1024}, does not
      * go down below {@code 64}, and does not go up above {@code 65536}.
      */
     public AdaptiveRecvByteBufAllocator() {

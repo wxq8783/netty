@@ -102,6 +102,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
             if (acceptOutboundMessage(msg)) {
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
+                //分配ByteBuf
                 buf = allocateBuffer(ctx, cast, preferDirect);
                 try {
                     encode(ctx, cast, buf);
@@ -110,7 +111,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
                 }
 
                 if (buf.isReadable()) {
-                    //TODO WUXQ 编码 ----->
+                    // 编码
                     ctx.write(buf, promise);
                 } else {
                     buf.release();

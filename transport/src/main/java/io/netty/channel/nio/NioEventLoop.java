@@ -716,6 +716,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // to a spin loop
             //读或接收事件 新连接接入
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
+                //如果是NioServerSocketChannel  则进入AbstractNioMessageChannel
+                //如果是NioSocketChannel 则进入AbstractNioByteChannel
                 unsafe.read();
             }
         } catch (CancelledKeyException ignored) {

@@ -128,7 +128,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 closeOnRead(pipeline);
             }
         }
-
+        //Netty从socket读取数据。
         @Override
         public final void read() {
             final ChannelConfig config = config();
@@ -145,6 +145,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             boolean close = false;
             try {
                 do {
+                    //分配内存
                     byteBuf = allocHandle.allocate(allocator);
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
                     if (allocHandle.lastBytesRead() <= 0) {
@@ -272,7 +273,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             if (buf.isDirect()) {
                 return msg;
             }
-
+            //创建directByteBuf
             return newDirectBuffer(buf);
         }
 

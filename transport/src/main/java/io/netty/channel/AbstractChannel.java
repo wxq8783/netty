@@ -495,7 +495,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
-                //这个方法在selector上注册了NioServerSocketChannel实例，但是没有绑定任何兴趣事件。
+                //如果是启动的时候 这个方法在selector上注册了NioServerSocketChannel实例，
+                // 如果是新连接的话 这个方法是selector上注册NioSocketChannel实例
+                // 这里没有绑定任何兴趣事件。
                 // 我们要知道，一个ServerSocketChannel要想接受客户端的连接必须要绑定一个Accept的兴趣事件的，
                 // 所以这里的注册流程还是不完整的，后面肯定有方法将这个坑给填上
                 doRegister();
@@ -856,7 +858,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 close(voidPromise());
             }
         }
-
+        //Netty准备把数据写到socket中去 ??
         @Override
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
@@ -875,6 +877,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             int size;
             try {
+                //创建ByteBuf
                 msg = filterOutboundMessage(msg);
                 size = pipeline.estimatorHandle().size(msg);
                 if (size < 0) {

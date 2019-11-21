@@ -56,7 +56,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * }
  * </pre>
  *
- * <h3>Sequential Access Indexing</h3>
+ * <h3>Sequential Access Indexing</h3> 顺序访问索引
  *
  * {@link ByteBuf} provides two pointer variables to support sequential
  * read and write operations - {@link #readerIndex() readerIndex} for a read
@@ -67,7 +67,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * <pre>
  *      +-------------------+------------------+------------------+
  *      | discardable bytes |  readable bytes  |  writable bytes  |
- *      |                   |     (CONTENT)    |                  |
+ *      |    (可丢弃)        |     (CONTENT)    |      (可写的)     |
  *      +-------------------+------------------+------------------+
  *      |                   |                  |                  |
  *      0      <=      readerIndex   <=   writerIndex    <=    capacity
@@ -183,7 +183,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * For complicated searches, use {@link #forEachByte(int, int, ByteProcessor)} with a {@link ByteProcessor}
  * implementation.
  *
- * <h3>Mark and reset</h3>
+ * <h3>Mark and reset</h3> 标记 和 重置
  *
  * There are two marker indexes in every buffer. One is for storing
  * {@link #readerIndex() readerIndex} and the other is for storing
@@ -234,7 +234,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * content (i.e. view buffer), you can get it via the {@link #nioBuffer()} method.  To determine
  * if a buffer can be converted into an NIO buffer, use {@link #nioBufferCount()}.
  *
- * <h4>Strings</h4>
+ * <h4>Strings</h4> 把字节转换为字符串 调用toString(Charset)
  *
  * Various {@link #toString(Charset)} methods convert a {@link ByteBuf}
  * into a {@link String}.  Please note that {@link #toString()} is not a

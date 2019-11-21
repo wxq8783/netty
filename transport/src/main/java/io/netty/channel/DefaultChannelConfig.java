@@ -67,6 +67,11 @@ public class DefaultChannelConfig implements ChannelConfig {
     private volatile WriteBufferWaterMark writeBufferWaterMark = WriteBufferWaterMark.DEFAULT;
     private volatile boolean pinEventExecutor = true;
 
+    //AdaptiveRecvByteBufAllocator是我们实际使用的缓冲管理区，
+    // 这个类可以动态计算下次需要分配的内存大小，其根据读取到的数据预测所需字节大小，从而自动增加或减少；
+    // 如果上一次读循环将缓冲填充满，那么预测的字节数会变大。
+    // 如果连续两次读循环不能填满已分配的缓冲区，则会减少所需的缓冲大小。
+    // 需要注意的是，这个类只是计算大小，真正的分配动作由ByteBufAllocator完成
     public DefaultChannelConfig(Channel channel) {
         this(channel, new AdaptiveRecvByteBufAllocator());
     }

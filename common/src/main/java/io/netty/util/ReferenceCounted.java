@@ -16,7 +16,7 @@
 package io.netty.util;
 
 /**
- * A reference-counted object that requires explicit deallocation.
+ * A reference-counted object that requires explicit deallocation. 引用计数对象 必须显示的回收
  * <p>
  * When a new {@link ReferenceCounted} is instantiated, it starts with the reference count of {@code 1}.
  * {@link #retain()} increases the reference count, and {@link #release()} decreases the reference count.
@@ -31,11 +31,13 @@ package io.netty.util;
  */
 public interface ReferenceCounted {
     /**
+     * 返回 引用的测试
      * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
      */
     int refCnt();
 
     /**
+     * 引用次数+1
      * Increases the reference count by {@code 1}.
      */
     ReferenceCounted retain();

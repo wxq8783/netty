@@ -143,7 +143,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     abstract boolean isDirect();
 
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
+        //拿到一个PooledByteBuf对象 仅仅只是拿到一个对象
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
+        //分配内存，把对应的buf里面的内存地址等信息进行初始化
         allocate(cache, buf, reqCapacity);
         return buf;
     }
@@ -171,7 +173,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     static boolean isTiny(int normCapacity) {
         return (normCapacity & 0xFFFFFE00) == 0;
     }
-    //TODO WUXQ 命中缓存的分配流程
+
+    //命中缓存的分配流程
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
         final int normCapacity = normalizeCapacity(reqCapacity);
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
@@ -179,6 +182,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             PoolSubpage<T>[] table;
             boolean tiny = isTiny(normCapacity);
             if (tiny) { // < 512
+                //cache.allocateTiny
                 if (cache.allocateTiny(this, buf, reqCapacity, normCapacity)) {
                     // was able to allocate out of the cache so move on
                     return;
@@ -186,6 +190,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                 tableIdx = tinyIdx(normCapacity);
                 table = tinySubpagePools;
             } else {
+                //cache.allocateSmall
                 if (cache.allocateSmall(this, buf, reqCapacity, normCapacity)) {
                     // was able to allocate out of the cache so move on
                     return;
@@ -219,6 +224,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return;
         }
         if (normCapacity <= chunkSize) {
+            //cache.allocateNormal
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
