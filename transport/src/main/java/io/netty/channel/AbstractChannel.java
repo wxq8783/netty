@@ -292,7 +292,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     public ChannelFuture writeAndFlush(Object msg) {
         return pipeline.writeAndFlush(msg);
     }
-
+    //写和刷新 调用pipeline.writeAndFlush 以及之后的编码
     @Override
     public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
         return pipeline.writeAndFlush(msg, promise);
@@ -858,7 +858,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 close(voidPromise());
             }
         }
-        //Netty准备把数据写到socket中去 ??
+        //Netty准备把数据写到socket中去   write-写buffer队列
         @Override
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
@@ -904,7 +904,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             outboundBuffer.addFlush();
             flush0();
         }
-        //TODO wuxq 编码
+        // 编码 写入到socket中
         @SuppressWarnings("deprecation")
         protected void flush0() {
             if (inFlush0) {

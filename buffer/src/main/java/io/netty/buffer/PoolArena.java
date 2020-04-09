@@ -50,9 +50,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     final int numSmallSubpagePools;
     final int directMemoryCacheAlignment;
     final int directMemoryCacheAlignmentMask;
-    private final PoolSubpage<T>[] tinySubpagePools;
-    private final PoolSubpage<T>[] smallSubpagePools;
+    private final PoolSubpage<T>[] tinySubpagePools;//subPage分配
+    private final PoolSubpage<T>[] smallSubpagePools;//subPage分配
 
+    //Page分配
     private final PoolChunkList<T> q050;
     private final PoolChunkList<T> q025;
     private final PoolChunkList<T> q000;
@@ -238,7 +239,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             allocateHuge(buf, reqCapacity);
         }
     }
-    //TODO WUXQ page级别内存分配
+    // page级别内存分配
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
@@ -759,7 +760,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return new PoolChunk<ByteBuffer>(this, memory, capacity,
                     offsetCacheLine(memory));
         }
-
+        //调用jdk分配连续的内存
         private static ByteBuffer allocateDirect(int capacity) {
             return PlatformDependent.useDirectBufferNoCleaner() ?
                     PlatformDependent.allocateDirectNoCleaner(capacity) : ByteBuffer.allocateDirect(capacity);

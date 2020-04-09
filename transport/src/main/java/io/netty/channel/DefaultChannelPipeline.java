@@ -1029,7 +1029,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     public final ChannelFuture write(Object msg, ChannelPromise promise) {
         return tail.write(msg, promise);
     }
-
+    //从tail节点开始往前传播
     @Override
     public final ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
         return tail.writeAndFlush(msg, promise);

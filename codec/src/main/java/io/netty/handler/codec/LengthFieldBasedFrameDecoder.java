@@ -389,13 +389,16 @@ public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
     /**
      * Create a frame out of the {@link ByteBuf} and return it.
-     *
+     *  1、计算需要抽取的数据表长度
+     *  2、跳过字节逻辑处理
+     *  3、丢弃模式下的处理
      * @param   ctx             the {@link ChannelHandlerContext} which this {@link ByteToMessageDecoder} belongs to
      * @param   in              the {@link ByteBuf} from which to read data
      * @return  frame           the {@link ByteBuf} which represent the frame or {@code null} if no frame could
      *                          be created.
      */
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+        //丢弃模式下的处理
         if (discardingTooLongFrame) {
             discardingTooLongFrame(in);
         }

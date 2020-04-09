@@ -278,9 +278,10 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 if (first) {
                     cumulation = data;
                 } else {
-                    //TODO WUXQ 解码累加器
+                    //解码累加器
                     cumulation = cumulator.cumulate(ctx.alloc(), cumulation, data);
                 }
+                //调用子类的decode方法进行解析
                 callDecode(ctx, cumulation, out);
             } catch (DecoderException e) {
                 throw e;
@@ -300,6 +301,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
 
                 int size = out.size();
                 firedChannelRead |= out.insertSinceRecycled();
+                //解析到的ByteBuf向下传播
                 fireChannelRead(ctx, out, size);
                 out.recycle();
             }
@@ -503,6 +505,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
             throws Exception {
         decodeState = STATE_CALLING_CHILD_DECODE;
         try {
+            //调用具体的子类去实现解码
             decode(ctx, in, out);
         } finally {
             boolean removePending = decodeState == STATE_HANDLER_REMOVED_PENDING;

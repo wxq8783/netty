@@ -128,6 +128,7 @@ public final class ChannelOutboundBuffer {
     }
 
     /**
+     * 添加刷新标志 并设置写状态
      * Add a flush to this {@link ChannelOutboundBuffer}. This means all previous added messages are marked as flushed
      * and so you will be able to handle them.
      */
